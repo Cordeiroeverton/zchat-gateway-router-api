@@ -1,0 +1,76 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: zchat-gateway-router-api
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      routes:
+        # Exemplo de rota para um serviço de "Auth"
+        - id: zchat-auth-service
+          uri: lb://ZCHAT-AUTH-SERVICE
+          predicates:
+            - Path=/auth/**
+          filters:
+            - StripPrefix=1
+
+        # Exemplo de rota para um serviço de "User"
+        - id: zchat-user-service
+          uri: lb://ZCHAT-USER-SERVICE
+          predicates:
+            - Path=/users/**
+          filters:
+            - StripPrefix=1
+            - AddRequestHeader=X-Gateway-Request, true
+
+        # Remova o filtro DedupeResponseHeader da rota do Chat
+        # A configuração CORS será feita globalmente!
+        - id: zchat-chat-service
+          uri: lb://ZCHAT-CHAT-SERVICE
+          predicates:
+            - Path=/chat/**
+          filters:
+            - StripPrefix=1
+
+      # Filtros globais que se aplicam a todas as rotas
+      default-filters:
+        - AddResponseHeader=X-Response-From-Gateway, true
+
+      # --- AQUI ESTÁ A NOVA SEÇÃO PARA CONFIGURAÇÃO GLOBAL CORS ---
+      globalcors:
+        add-to-cors-simple-request: true # Adiciona cabeçalhos CORS a requisições simples
+        cors-configurations:
+          '[/**]': # Aplica a todas as rotas (ou você pode especificar um path como '/api/**')
+            allowedOrigins: "*" # Permite todas as origens (ex: "http://localhost:3000", "https://seu-dominio.com")
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*" # Permite todos os cabeçalhos
+            allowCredentials: true # Permite credenciais (cookies, headers de autenticação)
+            maxAge: 3600 # Tempo que o browser pode cachear os resultados de preflight
+      # -----------------------------------------------------------
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    hostname: localhost
+    prefer-ip-address: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
